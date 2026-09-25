@@ -1,6 +1,7 @@
 package com.niraj.education.user.controller;
 
 import com.niraj.education.user.dto.LoginRequest;
+import com.niraj.education.user.dto.UserResponse;
 import com.niraj.education.user.entity.RefreshToken;
 import com.niraj.education.user.entity.User;
 import com.niraj.education.user.exception.RefreshTokenException;
@@ -31,10 +32,18 @@ public class UserController {
     private final RefreshTokenRepository refreshTokenRepository;
 
     @PostMapping("/register")
-    public ResponseEntity<User> rregister(@RequestBody User user) {
-        return ResponseEntity.ok(userService.register(user));
-    }
+    public ResponseEntity<UserResponse> register(@RequestBody User user) {
 
+        User registeredUser = userService.register(user);
+
+        UserResponse response = new UserResponse(
+                "User registered successfully",
+                registeredUser.getUsername(),
+                registeredUser.getRole()
+        );
+
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping("/login")
     public ResponseEntity<?> Login(@RequestBody LoginRequest request) {
