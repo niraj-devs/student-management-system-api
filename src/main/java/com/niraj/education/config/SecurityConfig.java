@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -17,10 +19,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.security.config.http.SessionCreationPolicy;
 
 import java.util.List;
 
@@ -34,16 +36,44 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    // =========================
+    // Password Encoder
+    // =========================
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    // =========================
+    // Authentication Provider
+    // =========================
+
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+
+        DaoAuthenticationProvider provider =
+                new DaoAuthenticationProvider(customUserDetailsService);
+
+        provider.setPasswordEncoder(passwordEncoder());
+
+        return provider;
+    }
+
+    // =========================
+    // Authentication Manager
+    // =========================
+
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration configuration) throws Exception {
+
         return configuration.getAuthenticationManager();
     }
+
+    // =========================
+    // Security Filter Chain
+    // =========================
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -51,6 +81,7 @@ public class SecurityConfig {
 
         return http
                 .csrf(csrf -> csrf.disable())
+
                 .cors(Customizer.withDefaults())
 
                 .sessionManagement(session ->
@@ -59,6 +90,9 @@ public class SecurityConfig {
                         )
                 )
 
+                // Explicit authentication provider
+                .authenticationProvider(authenticationProvider())
+
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
@@ -66,23 +100,41 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers("/auth/**", "/actuator/health").permitAll()
+                        // Public endpoints
+                        .requestMatchers(
+                                "/auth/**",
+                                "/actuator/health"
+                        ).permitAll()
 
-                        .requestMatchers(HttpMethod.GET, "/students/**")
-                        .hasAnyRole("USER", "ADMIN")
+                        // USER + ADMIN can read students
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/students/**"
+                        ).hasAnyRole("USER", "ADMIN")
 
-                        .requestMatchers(HttpMethod.POST, "/students/**")
-                        .hasRole("ADMIN")
+                        // Only ADMIN can create students
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/students/**"
+                        ).hasRole("ADMIN")
 
-                        .requestMatchers(HttpMethod.PUT, "/students/**")
-                        .hasRole("ADMIN")
+                        // Only ADMIN can update students
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/students/**"
+                        ).hasRole("ADMIN")
 
-                        .requestMatchers(HttpMethod.DELETE, "/students/**")
-                        .hasRole("ADMIN")
+                        // Only ADMIN can delete students
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/students/**"
+                        ).hasRole("ADMIN")
 
+                        // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
 
+                // JWT filter
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -91,13 +143,16 @@ public class SecurityConfig {
                 .build();
     }
 
+    // =========================
+    // CORS
+    // =========================
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration configuration =
                 new CorsConfiguration();
 
-        // Allowed frontend origins
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
