@@ -97,15 +97,14 @@ public class SecurityConfig {
         CorsConfiguration configuration =
                 new CorsConfiguration();
 
-        // For normal browser
+        // Allowed frontend origins
         configuration.setAllowedOrigins(
-                List.of("http://127.0.0.1:5501")
+                List.of(
+                        "http://localhost:5173",
+                        "http://127.0.0.1:5173",
+                        "http://127.0.0.1:5501"
+                )
         );
-
-        // For React
-        // configuration.setAllowedOrigins(
-        //         List.of("http://localhost:5173")
-        // );
 
         configuration.setAllowedMethods(
                 List.of(

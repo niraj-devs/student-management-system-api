@@ -21,7 +21,7 @@ public class JWTService {
     private long expiration;
 
     public String generateToken(String username){
-        System.out.println(secret);
+
         return Jwts.builder()
                 .subject(username)
                 .issuedAt(new Date())
