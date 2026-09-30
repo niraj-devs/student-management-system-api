@@ -1,25 +1,33 @@
-package com.niraj.education.config;
+
+        package com.niraj.education.config;
 
 import com.niraj.education.user.security.CustomAccessDeniedHandler;
 import com.niraj.education.user.security.CustomAuthenticationEntryPoint;
 import com.niraj.education.user.security.JwtAuthenticationFilter;
 import com.niraj.education.user.service.CustomUserDetailsService;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.config.http.SessionCreationPolicy;
+
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -36,18 +44,20 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    // =========================
+
+    // =========================================================
     // Password Encoder
-    // =========================
+    // =========================================================
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // =========================
+
+    // =========================================================
     // Authentication Provider
-    // =========================
+    // =========================================================
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
@@ -60,9 +70,10 @@ public class SecurityConfig {
         return provider;
     }
 
-    // =========================
+
+    // =========================================================
     // Authentication Manager
-    // =========================
+    // =========================================================
 
     @Bean
     public AuthenticationManager authenticationManager(
@@ -71,32 +82,42 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 
-    // =========================
+
+    // =========================================================
     // Security Filter Chain
-    // =========================
+    // =========================================================
 
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http) throws Exception {
 
         return http
+
+                // Disable CSRF because this is a stateless REST API
                 .csrf(csrf -> csrf.disable())
 
+                // Enable CORS using corsConfigurationSource()
                 .cors(Customizer.withDefaults())
 
+                // JWT authentication -> no HTTP session
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
                         )
                 )
 
-                // Explicit authentication provider
+                // Authentication provider
                 .authenticationProvider(authenticationProvider())
 
+                // Authentication / authorization error handling
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
                 )
+
+                // =================================================
+                // Authorization Rules
+                // =================================================
 
                 .authorizeHttpRequests(auth -> auth
 
@@ -134,7 +155,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                // JWT filter
+                // =================================================
+                // JWT Filter
+                // =================================================
+
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -143,9 +167,10 @@ public class SecurityConfig {
                 .build();
     }
 
-    // =========================
-    // CORS
-    // =========================
+
+    // =========================================================
+    // CORS Configuration
+    // =========================================================
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -153,8 +178,17 @@ public class SecurityConfig {
         CorsConfiguration configuration =
                 new CorsConfiguration();
 
+        // Allowed frontend origins
+        configuration.setAllowedOrigins(
+                List.of(
+                        "http://localhost:5173",
+                        "http://127.0.0.1:5173",
+                        "http://127.0.0.1:5501",
+                        "https://react-frontend-student-management-a.vercel.app"
+                )
+        );
 
-
+        // Allowed HTTP methods
         configuration.setAllowedMethods(
                 List.of(
                         "GET",
@@ -165,12 +199,15 @@ public class SecurityConfig {
                 )
         );
 
+        // Allow request headers such as Authorization and Content-Type
         configuration.setAllowedHeaders(
                 List.of("*")
         );
 
+        // Required when frontend sends credentials
         configuration.setAllowCredentials(true);
 
+        // Register CORS configuration for every endpoint
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
